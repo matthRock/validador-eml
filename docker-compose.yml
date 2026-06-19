@@ -1,0 +1,28 @@
+services:
+  backend-php:
+    image: php:8.2-apache
+    container_name: validador_php_dev
+    ports:
+      - "8000:80"
+    volumes:
+      - ./:/var/www/html
+    environment:
+      - display_errors=On
+    restart: unless-stopped
+
+  db-admin:
+    image: mariadb:10.11
+    container_name: validador_db_dev
+    environment:
+      MARIADB_ROOT_PASSWORD: senha_root_dev_segura
+      MARIADB_DATABASE: validador_usuarios
+      MARIADB_USER: usuario_dev
+      MARIADB_PASSWORD: senha_dev_segura
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  db_data:

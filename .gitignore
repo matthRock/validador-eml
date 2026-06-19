@@ -1,0 +1,17 @@
+# Pastas de dependências
+/vendor/
+/node_modules/
+
+# Arquivos de variáveis de ambiente
+.env
+.env.local
+
+# Arquivos de log e cache
+*.log
+/logs/
+/cache/
+
+# Arquivos de sistema operacional e IDEs
+.vscode/
+.DS_Store
+Thumbs.db
