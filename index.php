@@ -1,75 +1,57 @@
 <?php
 
+# Etapa 1: Validação do conteúdo e da requisição
+
 # Trocando o tipo de conteudo para JSON
 header('Content-Type: application/json');
 
-# Recebe o método http da requisição
-$metodo_http = $_SERVER['REQUEST_METHOD'];
-
-#### Inicialização de variáveis ############
-
-# Array associativo que vai conter o resultado da requisição
-$resultado_request = [ 'status' => '', 'Mensagem' => '' ];
-
-
-if(validador_requisicao($metodo_http)){
-    cria_resposta();
+# Verifica o método http da requisição e mata a requisição caso seja inválida
+if($_SERVER['REQUEST_METHOD'] !== 'POST'){
+    retorna_erro();
 }
 
-function cria_resposta(){
-    if (verifica_payload()){
-        # Formula a resposta para o cliente
-        $resultado_request["status"] = '200';
-        $resultado_request["Mensagem"] = "Motor PHP e Apache operantes!";
-        # Exibindo o resultado convertido para JSON
-        echo json_encode($resultado_request);
-        echo "\n";
-    } else {
-        # Exibindo mensagem de erro para o Cliente
-        $resultado_request["status"] = '400';
-        $resultado_request["Mensagem"] = "Erro: O conteúdo inválido!/n";
-        echo json_encode($resultado_request);
-        echo "\n";
-    }
+# Leitura do conteúdo da página
+$json_recebido = file_get_contents('php://input');
+# Converte o conteúdo recebido para Array associativo
+$array_json_recebido = json_decode($json_recebido, true);
+
+# Verifica se o conteúdo recebido é nulo ou se a chave eml_content existe no array
+if($array_json_recebido === null || !isset($array_json_recebido['eml_content'])){
+    retorna_erro();
 }
 
-function validador_requisicao($metodo_http){
-    # Inicializando a variável que 
-    # vai verificar se o método http é válido 
+$eml_bruto = $array_json_recebido['eml_content'];
+$tamanho_string = strlen($array_json_recebido['eml_content']);
 
-    $metodo_valido = false;
-
-    # Verifica se o método http é válido
-    switch ($metodo_http) {
-        case 'POST':
-            $metodo_valido = true;
-            break;
-        default:
-            $metodo_valido = false;
-    }
-    return $metodo_valido;
+if(!($tamanho_string < 50000 && $tamanho_string > 0)){
+    retorna_erro();
 }
 
-function verifica_payload(){
+# Etapa 2: Processamento do EML
 
-    # String para validar o payload recebido 
-    # (conteúdo > 1000 caracteres e < 0 caracteres)
-    $string_validada = false;
-
-    # Recebe o conteúdo da requisição em formato json
-    $json_recebido = file_get_contents('php://input');
+# Padronizando o EML para evitar problemas de quebra de linha
+$eml_normalizado = str_replace("\r\n", "\n", $eml_bruto);
     
-    # Converte o conteúdo recebido para Array associativo
-    $array_json_recebido = json_decode($json_recebido, true);
+# Cortando o EML em cabeçalho e corpo
+$partes_do_eml = explode("\n\n", $eml_normalizado, 2);
 
-    #conta a quantidade de strings no array associativo
-    $tamanho_string = strlen($array_json_recebido['eml_content']);
 
-    # Verifica se o conteúdo recebido é válido  
-    if($tamanho_string < 1000 && $tamanho_string > 0){
-        $string_validada = true;
-    }
-    return $string_validada;
+$resultado_requisicao = [
+    "status" => "200",
+    "mensagem" => "Motor PHP e Apache operantes!",
+    "cabecalho_eml" => $partes_do_eml[0],
+    "corpo_eml" => $partes_do_eml[1] ?? "" # retorna vazio caso o corpo do EML não exista
+];
+
+# Exibindo o resultado bem sucedido da requisição
+# e informando o status code 200 (OK) para o cliente
+http_response_code(200); 
+echo json_encode($resultado_requisicao) . "\n";
+
+function retorna_erro(){
+    http_response_code(400);
+    echo json_encode(["status" => "400", "mensagem" => "Erro: Requisição inválida!"]) . "\n";
+    exit();
+
 }
 
-?>
