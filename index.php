@@ -29,14 +29,30 @@ if(!($tamanho_string < 50000 && $tamanho_string > 0)){
 
 # Etapa 2: Processamento do EML
 
-# Padronizando o EML para evitar problemas de quebra de linha
-$eml_normalizado = str_replace("\r\n", "\n", $eml_bruto);
-    
 # Cortando o EML em cabeçalho e corpo
-$partes_do_eml = explode("\n\n", $eml_normalizado, 2);
+$partes_do_eml = explode("\n\n", $eml_bruto, 2);
+
+# Padronizando o EML para evitar problemas de quebra de linha
+$cabecalho_normalizado = str_replace("\r\n", "\n", $partes_do_eml[0]);
+
+# Solução 1 para remover a dobra de linha (RFC5322) e juntar as linhas quebradas
+$cabecalho_desdobrado = preg_replace("/\n[ \t]+/", " ", $cabecalho_normalizado);
 
 # Cortando o cabeçalho do EML para dentro do array
-$partes_do_cabecalho = explode("\n", $partes_do_eml[0]);
+$partes_do_cabecalho = explode("\n", $cabecalho_desdobrado);
+
+
+$cabecalho_final = [];
+$array_auxiliar = [];
+
+foreach($partes_do_cabecalho as $value){
+    $array_auxiliar = explode(":", $value, 2);
+    if(count($array_auxiliar) === 2){
+        $cabecalho_final[trim($array_auxiliar[0])] = trim($array_auxiliar[1]);
+    }
+}
+
+
 
 $resultado_requisicao = [
     "status" => "200",
@@ -59,3 +75,16 @@ function retorna_erro(){
 
 }
 
+# Solução 2 utilizando laço de repetição para percorrer o array do cabeçalho 
+# removendo a dobra de linha (RFC5322) e juntando as linhas quebradas
+#$variavel_auxiliar = "";
+#foreach($partes_do_cabecalho as $key => $value){
+#    if(str_starts_with($value, " ") || str_starts_with($value, "\t")){
+#        $partes_do_cabecalho[$key-1] .= " " . trim($value);
+#        unset($partes_do_cabecalho[$key]);
+#        $key = $variavel_auxiliar;#
+#
+#    } else {
+#        $variavel_auxiliar = $key;
+#    }
+#}
