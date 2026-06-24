@@ -20,12 +20,17 @@ if($array_json_recebido === null || !isset($array_json_recebido['eml_content']))
     retorna_erro();
 }
 
-$eml_bruto = $array_json_recebido['eml_content'];
+# Coletando o tamanho da string
 $tamanho_string = strlen($array_json_recebido['eml_content']);
 
+# Verificando se a string coletada possui um tamnho não ofensivo para a requisição 
 if(!($tamanho_string < 50000 && $tamanho_string > 0)){
     retorna_erro();
 }
+
+# Recebendo o conteúdo da chave eml_content no array eml_bruto
+$eml_bruto = $array_json_recebido['eml_content'];
+
 
 # Etapa 2: Processamento do EML
 
@@ -42,23 +47,50 @@ $cabecalho_desdobrado = preg_replace("/\n[ \t]+/", " ", $cabecalho_normalizado);
 $partes_do_cabecalho = explode("\n", $cabecalho_desdobrado);
 
 
-$cabecalho_final = [];
-$array_auxiliar = [];
+#$array_auxiliar = "";
+$cabecalho_final = cria_dicionario_dados($partes_do_cabecalho);
 
-foreach($partes_do_cabecalho as $value){
-    $array_auxiliar = explode(":", $value, 2);
-    if(count($array_auxiliar) === 2){
-        $cabecalho_final[trim($array_auxiliar[0])] = trim($array_auxiliar[1]);
-    }
+#foreach($partes_do_cabecalho as $value){
+#    $array_auxiliar = explode(":", $value, 2);
+#    if(count($array_auxiliar) === 2){
+#        $cabecalho_final[trim($array_auxiliar[0])] = trim($array_auxiliar[1]);
+#    }
+#}
+
+
+$boundary = "";
+if (preg_match('/"([^"]*)"/', $cabecalho_final['Content-Type'], $matches)) {
+    $boundary = $matches[1];
 }
 
+# Essa variável contém o mesmo texto em vários tipos diferentes
+$versoes_mensagem = explode("--" . $boundary, $partes_do_eml[1]);
 
+# Já aqui a variável contém apenas o Contet-Type: text/html
+$mensagem_final = "";
+
+foreach($versoes_mensagem as $value){
+    $array_auxiliar = explode("\n\n", $value, 2);
+    $mini_cabecalho = trim($array_auxiliar[0]);
+    $mini_corpo = $array_auxiliar[1] ?? "";
+    
+    if (str_contains(strtolower($mini_cabecalho), "text/html")) {
+        $array_auxiliar = explode("\n", $mini_cabecalho);
+        
+        if(str_contains(strtolower($array_auxiliar[1]), "quoted-printable")){
+            $mensagem_final = trim(quoted_printable_decode($mini_corpo));
+        } elseif (str_contains(strtolower($array_auxiliar[1]), "base64")){
+            $mensagem_final = base64_decode($mini_corpo);
+        }
+    }
+}
 
 $resultado_requisicao = [
     "status" => "200",
     "mensagem" => "Motor PHP e Apache operantes!",
-    "cabecalho_eml" => $partes_do_cabecalho,
-    "corpo_eml" => $partes_do_eml[1] ?? "" # retorna vazio caso o corpo do EML não exista
+    "cabecalho_eml" => $cabecalho_final,
+    "boundary" => $boundary,
+    "corpo_eml" => $mensagem_final ?? "" # retorna vazio caso o corpo do EML não exista
 ];
 
 
@@ -66,7 +98,7 @@ $resultado_requisicao = [
 # Exibindo o resultado bem sucedido da requisição
 # e informando o status code 200 (OK) para o cliente
 http_response_code(200); 
-echo json_encode($resultado_requisicao) . "\n";
+#echo json_encode($resultado_requisicao) . "\n";
 
 function retorna_erro(){
     http_response_code(400);
@@ -74,6 +106,25 @@ function retorna_erro(){
     exit();
 
 }
+
+function cria_dicionario_dados($array_original){
+    $array_auxiliar = [];
+    foreach($array_original as $value){
+    $array_auxiliar = explode(":", $value, 2);
+        if(count($array_auxiliar) === 2){
+            $array_original[trim($array_auxiliar[0])] = trim($array_auxiliar[1]);
+        }
+    }
+    return $array_original;
+}
+
+
+#foreach($partes_do_cabecalho as $value){
+#    $array_auxiliar = explode(":", $value, 2);
+#    if(count($array_auxiliar) === 2){
+#        $cabecalho_final[trim($array_auxiliar[0])] = trim($array_auxiliar[1]);
+#    }
+#}
 
 # Solução 2 utilizando laço de repetição para percorrer o array do cabeçalho 
 # removendo a dobra de linha (RFC5322) e juntando as linhas quebradas
