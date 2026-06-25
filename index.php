@@ -46,17 +46,28 @@ $cabecalho_desdobrado = preg_replace("/\n[ \t]+/", " ", $cabecalho_normalizado);
 # Cortando o cabeçalho do EML para dentro do array
 $partes_do_cabecalho = explode("\n", $cabecalho_desdobrado);
 
-
-#$array_auxiliar = "";
+# Recebendo dados para o cabeçalho em formato de array associativo 
 $cabecalho_final = cria_dicionario_dados($partes_do_cabecalho);
 
-#foreach($partes_do_cabecalho as $value){
-#    $array_auxiliar = explode(":", $value, 2);
-#    if(count($array_auxiliar) === 2){
-#        $cabecalho_final[trim($array_auxiliar[0])] = trim($array_auxiliar[1]);
-#    }
-#}
+#echo $cabecalho_final['Authentication-Results'] . "\n";
 
+
+$validador = [ 
+    'spf' => "/\bspf=([a-zA-Z]+)/i",
+    'dmarc' => "/\bdmarc=([a-zA-Z]+)/i",
+    'dkim' => "/\bdkim=([a-zA-Z]+)/i"
+    ];
+
+$auditoria = [ 'spf' => '', 'dmarc' => '', 'dkim' => ''];
+
+$resultado_autenticacao = $cabecalho_final['Authentication-Results'] ?? "";
+
+foreach($validador as $key => $value){
+    if (preg_match($value, $resultado_autenticacao, $matches)){
+        $auditoria[$key] = trim($matches[1]) ?? "";
+        #echo "O " . $key . " = " . $auditoria[$key] . "\n";
+    }
+}
 
 $boundary = "";
 if (preg_match('/"([^"]*)"/', $cabecalho_final['Content-Type'], $matches)) {
@@ -66,14 +77,15 @@ if (preg_match('/"([^"]*)"/', $cabecalho_final['Content-Type'], $matches)) {
 # Essa variável contém o mesmo texto em vários tipos diferentes
 $versoes_mensagem = explode("--" . $boundary, $partes_do_eml[1]);
 
-# Já aqui a variável contém apenas o Contet-Type: text/html
+# O loop abaixo visa extrair o cabeçalho e mensagem do tipo text/html 
+# para validar em qual codificação está o conteúdo (base64 ou quoted-printable)
+# para então efetuar sua conversão correta e armazenar estes valores
 $mensagem_final = "";
-
 foreach($versoes_mensagem as $value){
     $array_auxiliar = explode("\n\n", $value, 2);
     $mini_cabecalho = trim($array_auxiliar[0]);
     $mini_corpo = $array_auxiliar[1] ?? "";
-    
+
     if (str_contains(strtolower($mini_cabecalho), "text/html")) {
         $array_auxiliar = explode("\n", $mini_cabecalho);
         
@@ -87,18 +99,17 @@ foreach($versoes_mensagem as $value){
 
 $resultado_requisicao = [
     "status" => "200",
-    "mensagem" => "Motor PHP e Apache operantes!",
     "cabecalho_eml" => $cabecalho_final,
+    "corpo_eml" => $mensagem_final ?? "", # retorna vazio caso o corpo do EML não exista
     "boundary" => $boundary,
-    "corpo_eml" => $mensagem_final ?? "" # retorna vazio caso o corpo do EML não exista
+    "auditoria" => $auditoria
 ];
-
 
 
 # Exibindo o resultado bem sucedido da requisição
 # e informando o status code 200 (OK) para o cliente
 http_response_code(200); 
-#echo json_encode($resultado_requisicao) . "\n";
+echo json_encode($resultado_requisicao) . "\n";
 
 function retorna_erro(){
     http_response_code(400);
