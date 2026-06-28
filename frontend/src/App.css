@@ -1,0 +1,64 @@
+/*
+ Criando minha classe padrão de seletores
+*/
+
+:root {
+  --background-primiry-color: #8F0101;
+  --background-secondary-color: #B81515;
+  --background-tertiary-color: #F5F5F5;
+
+  --title-weight: 700;
+  --text-weight: 400;
+  --menu-text-weight: 500;
+}
+
+/*
+ Declarando a fontface
+*/
+@font-face {
+  font-family: Montserrat;
+  src: url(./assets/Montserrat/Montserrat-VariableFont_wght.ttf);
+}
+
+/*
+ Resetando todas as configurações do CSS
+*/
+body,
+div,
+p,
+section,
+header,
+form {
+  margin: 0px;
+  padding: 0px;
+  box-sizing: border-box;
+  font-family: "Montserrat";
+
+}
+
+header {
+  background-color: var(--background-primiry-color);
+  display: flex;
+  justify-content: center;
+  padding: 2px auto;
+  font-weight: var(--title-weight);
+  color: var(--background-tertiary-color);
+}
+
+section {
+  background-color: var(--background-secondary-color);
+  margin: 0px;
+  display: flex;
+  justify-content: center;
+}
+
+footer {
+  background-color: var(--background-tertiary-color);
+  margin: 0px;
+  display: flex;
+  justify-content: center;
+}
+
+.editor {
+  border: 1px solid red;
+}

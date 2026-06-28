@@ -1,5 +1,19 @@
 <?php
 
+# Etapa 0: Permitindo acesso cross origin
+# TICKET [FRONT-001]: Configuração de CORS (Cross-Origin Resource Sharing)
+# Permite que o React (porta 5173) converse com o PHP (porta 80)
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+# O navegador envia uma requisição "OPTIONS" antes do POST para verificar permissões.
+# Se for OPTIONS, nós encerramos com status 200 (OK) sem rodar o resto do código.
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
 # Etapa 1: Validação do conteúdo e da requisição
 
 # Trocando o tipo de conteudo para JSON
@@ -105,7 +119,6 @@ $resultado_requisicao = [
     "auditoria" => $auditoria
 ];
 
-
 # Exibindo o resultado bem sucedido da requisição
 # e informando o status code 200 (OK) para o cliente
 http_response_code(200); 
@@ -128,25 +141,3 @@ function cria_dicionario_dados($array_original){
     }
     return $array_original;
 }
-
-
-#foreach($partes_do_cabecalho as $value){
-#    $array_auxiliar = explode(":", $value, 2);
-#    if(count($array_auxiliar) === 2){
-#        $cabecalho_final[trim($array_auxiliar[0])] = trim($array_auxiliar[1]);
-#    }
-#}
-
-# Solução 2 utilizando laço de repetição para percorrer o array do cabeçalho 
-# removendo a dobra de linha (RFC5322) e juntando as linhas quebradas
-#$variavel_auxiliar = "";
-#foreach($partes_do_cabecalho as $key => $value){
-#    if(str_starts_with($value, " ") || str_starts_with($value, "\t")){
-#        $partes_do_cabecalho[$key-1] .= " " . trim($value);
-#        unset($partes_do_cabecalho[$key]);
-#        $key = $variavel_auxiliar;#
-#
-#    } else {
-#        $variavel_auxiliar = $key;
-#    }
-#}
