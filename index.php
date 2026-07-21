@@ -45,26 +45,29 @@ if(!($tamanho_string < 50000 && $tamanho_string > 0)){
 # Recebendo o conteúdo da chave eml_content no array eml_bruto
 $eml_bruto = $array_json_recebido['eml_content'];
 
-
-# Etapa 2: Processamento do EML
-
+$eml_bruto = str_replace("\r\n", "\n", $eml_bruto);
+ 
 # Cortando o EML em cabeçalho e corpo
 $partes_do_eml = explode("\n\n", $eml_bruto, 2);
-
-# Padronizando o EML para evitar problemas de quebra de linha
-$cabecalho_normalizado = str_replace("\r\n", "\n", $partes_do_eml[0]);
-
+ 
+$cabecalho_normalizado = $partes_do_eml[0];
+ 
 # Solução 1 para remover a dobra de linha (RFC5322) e juntar as linhas quebradas
 $cabecalho_desdobrado = preg_replace("/\n[ \t]+/", " ", $cabecalho_normalizado);
-
+ 
 # Cortando o cabeçalho do EML para dentro do array
 $partes_do_cabecalho = explode("\n", $cabecalho_desdobrado);
+
+
 
 # Recebendo dados para o cabeçalho em formato de array associativo 
 $cabecalho_final = cria_dicionario_dados($partes_do_cabecalho);
 
+
 #echo $cabecalho_final['Authentication-Results'] . "\n";
 
+//var_dump($partes_do_cabecalho); 
+//exit();
 
 $validador = [ 
     'spf' => "/\bspf=([a-zA-Z]+)/i",
@@ -83,13 +86,22 @@ foreach($validador as $key => $value){
     }
 }
 
-$boundary = "";
-if (preg_match('/"([^"]*)"/', $cabecalho_final['Content-Type'], $matches)) {
-    $boundary = $matches[1];
-}
+$matches = [];
 
-# Essa variável contém o mesmo texto em vários tipos diferentes
-$versoes_mensagem = explode("--" . $boundary, $partes_do_eml[1]);
+$boundary = "";
+$versoes_mensagem = "";
+
+
+if (preg_match('/\bmultipart/i', $cabecalho_final['Content-Type'])) {
+    if(preg_match('/\bboundary=(?:"([^"]+)"|([^;]+))/i', $cabecalho_final['Content-Type'], $matches)){
+        $boundary = $matches[1];
+        # Essa variável contém o mesmo texto em vários tipos diferentes
+        $versoes_mensagem = explode("--" . $boundary, $partes_do_eml[1]);
+    }
+    //else {
+      //  $versoes_mensagem = $partes_do_eml[1];
+   // }
+}
 
 # O loop abaixo visa extrair o cabeçalho e mensagem do tipo text/html 
 # para validar em qual codificação está o conteúdo (base64 ou quoted-printable)
@@ -115,18 +127,24 @@ $resultado_requisicao = [
     "status" => "200",
     "cabecalho_eml" => $cabecalho_final,
     "corpo_eml" => $mensagem_final ?? "", # retorna vazio caso o corpo do EML não exista
-    "boundary" => $boundary,
+    "boundary" => $boundary ?? "",
     "auditoria" => $auditoria
 ];
 
 # Exibindo o resultado bem sucedido da requisição
 # e informando o status code 200 (OK) para o cliente
 http_response_code(200); 
+//var_dump($resultado_requisicao);
+//exit();
 echo json_encode($resultado_requisicao) . "\n";
 
 function retorna_erro(){
     http_response_code(400);
-    echo json_encode(["status" => "400", "mensagem" => "Erro: Requisição inválida!"]) . "\n";
+    //if($mensagem != "") {
+     echo json_encode(["status" => "400", "mensagem" => "Erro: Requisição inválida!"]) . "\n";
+   // } else {
+     //   echo json_encode(["status" => "400", "mensagem" => $mensagem_erro]) . "\n";
+   // }
     exit();
 
 }
