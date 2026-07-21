@@ -47,6 +47,10 @@ function App() {
     reader.readAsText(event.target.files[0]);
   }
 
+  function handleEditorDidMount(editor, monaco) {
+    monaco.editor.setModelMarkers();
+  }
+
   return (
     <>
       <header>
@@ -57,8 +61,20 @@ function App() {
           <input type="file" accept=".eml" onChange={validaUploadArquivo} />
           {mensagemErro && <p className="error">{mensagemErro}</p>}
         </div>
-        {resultadoAnalise &&
-          <code>{JSON.stringify(resultadoAnalise, null, 2)}</code>}
+        <Editor
+          height="86vh"
+          defaultLanguage="ini"
+          theme="vs-dark"
+          //readOnly={false}
+          value={resultadoAnalise && JSON.stringify(resultadoAnalise, null, 2)}
+          defaultValue="// Drag and drop a EML file here"
+          onMount={handleEditorDidMount}
+          options={{
+            readOnly: true, // Bloqueia a edição do texto
+            domReadOnly: true, // Adiciona um tooltip informando que é somente leitura
+            minimap: { enabled: false }
+          }}
+        />
       </section>
       <footer>
         <p>@2026 All rights reserved</p>
