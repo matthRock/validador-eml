@@ -87,7 +87,7 @@ function App() {
         </div>
       </section>
       <footer>
-        <p>@2026 All rights reserved | by matthRock</p>
+        <p>@2026 All rights reserved | by <a target="_blank" rel="author license noopener noreferrer" href="https://github.com/matthRock">matthRock</a></p>
       </footer>
     </>
   )
