@@ -7,6 +7,35 @@ import DomPurify from 'dompurify'
 // Toda função no react é um componente,
 // Essas funções devem começar com letra maiúscula
 // Para que o react consiga diferenciar componetes de funções normais
+
+function EmlPagina({ onEditorMount }) {
+  return (
+    <Editor
+      height="77vh"
+      idName="monaco-editor"
+      defaultLanguage="json"
+      theme="vs-dark"
+      defaultValue="// Drag and drop a EML file here"
+      onMount={onEditorMount}
+      options={{
+        readOnly: true,
+        domReadOnly: true,
+        minimap: { enabled: false }
+      }}
+    />
+  );
+}
+
+function MensagemPagina({ conteudoHtml }) {
+  return (
+    <iframe
+      className="editor iframe"
+      sandbox=""
+      srcDoc={conteudoHtml}
+    />
+  );
+}
+
 function App() {
 
   // Guarda mensagem de erro
@@ -69,34 +98,24 @@ function App() {
     editorRef.current = editor;
   }
 
-  const EmlPagina = () => <Editor
-    height="75vh"
-    idName="monaco-editor"
-    defaultLanguage="json"
-    theme="vs-dark"
-    defaultValue="// Drag and drop a EML file here"
-    onMount={handleEditorDidMount}
-    options={{
-      readOnly: true, // Bloqueia a edição do texto
-      domReadOnly: true, // Adiciona um tooltip informando que é somente leitura
-      minimap: { enabled: false }
-    }}
-  />;
-  const MensagemPagina = () => <iframe className="editor iframe"
-    sandbox=""
-    srcDoc={resultadoAnalise ? safeHtmlComponent(resultadoAnalise.corpo_eml) : "sem conteúdo recebido"}
-  />;
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'emlPagina':
-        return <EmlPagina />;
-      case 'mensagemPagina':
-        return <MensagemPagina />;
-      default:
-        return <EmlPagina />;
-    }
-  };
+  //    const renderPage = () => {
+  //   switch (currentPage) {
+  //    case 'emlPagina':
+  //     return <EmlPagina onEditorMount={handleEditorDidMount} />;
+  //  case 'mensagemPagina':
+  //   return (
+  //    <MensagemPagina
+  //     conteudoHtml={resultadoAnalise ? safeHtmlComponent(resultadoAnalise.corpo_eml) : "sem conteúdo recebido"}
+  //  />
+  // );
+  //default:
+  //  return <EmlPagina onEditorMount={handleEditorDidMount} />;
+  // }
+  //};
+  //        {/* 5. Display the rendered component */}
+  //     <main /*style={{ padding: '20px' }}*/>
+  //      {renderPage()}
+  //   </main>
 
   return (
     <>
@@ -114,10 +133,12 @@ function App() {
         </div>
 
         <div className="editor">
-          {/* 5. Display the rendered component */}
-          <main /*style={{ padding: '20px' }}*/>
-            {renderPage()}
-          </main>
+          <div style={{ display: currentPage === 'emlPagina' ? 'block' : 'none' }}>
+            <EmlPagina onEditorMount={handleEditorDidMount} />
+          </div>
+          <div style={{ display: currentPage === 'mensagemPagina' ? 'block' : 'none' }}>
+            <MensagemPagina conteudoHtml={resultadoAnalise ? safeHtmlComponent(resultadoAnalise.corpo_eml) : "sem conteúdo recebido"} />
+          </div>
         </div>
       </section>
       <footer>

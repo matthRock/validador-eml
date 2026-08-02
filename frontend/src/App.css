@@ -87,9 +87,11 @@ a {
 }
 
 .iframe {
-  border: 1px solid black;
+  /*border: 1px solid black;*/
+  border-radius: 5px;
   width: 100%;
-  height: 75vh;
+  height: 77vh;
+  background-color: var(--background-tertiary-color);
 }
 
 .menu {
