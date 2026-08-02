@@ -6,6 +6,7 @@
   --background-primiry-color: #8F0101;
   --background-secondary-color: #B81515;
   --background-tertiary-color: #F5F5F5;
+  --background-menu-color: #dacccc;
 
   --title-weight: 700;
   --text-weight: 400;
@@ -31,7 +32,9 @@ p,
 h1,
 section,
 header,
-form {
+nav,
+form,
+iframe {
   margin: 0px;
   padding: 0px;
   box-sizing: border-box;
@@ -43,11 +46,11 @@ header {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 2px auto;
+  /*padding: 2px auto;*/
   font-weight: var(--title-weight);
   color: var(--background-tertiary-color);
   height: 10vh;
-  width: 100vw;
+  width: 100%;
 }
 
 section {
@@ -56,9 +59,9 @@ section {
   margin: 0px;
   padding: 0px 10px;
   display: flexbox;
-  height: 86vh;
+  height: auto;
   /*justify-content: center;*/
-  width: 100vw;
+  width: 100%;
 }
 
 footer {
@@ -67,7 +70,7 @@ footer {
   display: flex;
   justify-content: center;
   height: 3vh;
-  width: 100vw;
+  width: 100%;
 }
 
 a {
@@ -79,8 +82,35 @@ a {
   /*border: 1px solid black;*/
   display: inline-block;
   align-items: center;
-  width: 98vw;
+  width: 100%;
   padding: 2px 0px;
+}
+
+.iframe {
+  border: 1px solid black;
+  width: 100%;
+  height: 75vh;
+}
+
+.menu {
+  display: inline-flexbox;
+  background-color: var(--background-menu-color);
+  font-weight: var(--menu-text-weight);
+  padding: 0% 5%;
+}
+
+.menu-item {
+  /*border: 1px solid black;*/
+  display: inline-block;
+  padding: 0% 1%;
+  width: auto;
+  font-weight: var(--menu-text-weight);
+}
+
+.menu-item:hover {
+  background-color: var(--background-secondary-color);
+  color: var(--background-tertiary-color);
+  cursor: pointer;
 }
 
 .error {

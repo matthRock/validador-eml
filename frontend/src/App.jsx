@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useRef } from 'react'
 import './App.css'
 import Editor from '@monaco-editor/react'
+import DomPurify from 'dompurify'
 
 // Toda função no react é um componente,
 // Essas funções devem começar com letra maiúscula
@@ -12,13 +13,14 @@ function App() {
   const [mensagemErro, setMensagemErro] = useState('');
   // Guarda o resultado da análise
   const [resultadoAnalise, setResultadoAnalise] = useState('');
+  // Guarda a página atual
+  const [currentPage, setCurrentPage] = useState('emlPagina');
 
   // Inicializando a referencia para o editor do Monaco
   const editorRef = useRef(null);
 
   //informando o endereço da API PHP
   const url = import.meta.env.VITE_API_URL;
-
 
   async function validaUploadArquivo(event) {
 
@@ -56,34 +58,66 @@ function App() {
     reader.readAsText(event.target.files[0]);
   }
 
+  // Função que sanitiza o HTML que será exibido no iframe, para evitar ataques Cross Site Scripting (XSS)
+  function safeHtmlComponent(dirtyHtmlString) {
+    const cleanHtml = DomPurify.sanitize(dirtyHtmlString);
+    return cleanHtml;
+  }
+
+  // Função chamada quando o editor do Monaco é montado para atualizar conteúdo do editor com o arquivo carregado
   function handleEditorDidMount(editor, monaco) {
     editorRef.current = editor;
   }
+
+  const EmlPagina = () => <Editor
+    height="75vh"
+    idName="monaco-editor"
+    defaultLanguage="json"
+    theme="vs-dark"
+    defaultValue="// Drag and drop a EML file here"
+    onMount={handleEditorDidMount}
+    options={{
+      readOnly: true, // Bloqueia a edição do texto
+      domReadOnly: true, // Adiciona um tooltip informando que é somente leitura
+      minimap: { enabled: false }
+    }}
+  />;
+  const MensagemPagina = () => <iframe className="editor iframe"
+    sandbox=""
+    srcDoc={resultadoAnalise ? safeHtmlComponent(resultadoAnalise.corpo_eml) : "sem conteúdo recebido"}
+  />;
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'emlPagina':
+        return <EmlPagina />;
+      case 'mensagemPagina':
+        return <MensagemPagina />;
+      default:
+        return <EmlPagina />;
+    }
+  };
 
   return (
     <>
       <header>
         <h1> EML Analyser</h1>
       </header>
+      <nav className="menu">
+        <div className="menu-item" onClick={() => setCurrentPage('emlPagina')}>EML</div>
+        <div className="menu-item" onClick={() => setCurrentPage('mensagemPagina')}> Mensagem</div>
+      </nav>
       <section>
         <div className="editor">
           <input type="file" accept=".eml" onChange={validaUploadArquivo} />
           {mensagemErro && <p className="error">{mensagemErro}</p>}
         </div>
+
         <div className="editor">
-          <Editor
-            height="80vh"
-            idName="monaco-editor"
-            defaultLanguage="json"
-            theme="vs-dark"
-            defaultValue="// Drag and drop a EML file here"
-            onMount={handleEditorDidMount}
-            options={{
-              readOnly: true, // Bloqueia a edição do texto
-              domReadOnly: true, // Adiciona um tooltip informando que é somente leitura
-              minimap: { enabled: false }
-            }}
-          />
+          {/* 5. Display the rendered component */}
+          <main /*style={{ padding: '20px' }}*/>
+            {renderPage()}
+          </main>
         </div>
       </section>
       <footer>

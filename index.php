@@ -102,8 +102,6 @@ for($contador_linha; $contador_linha < count($partes_do_cabecalho); $contador_li
 
 #echo $cabecalho_final['Authentication-Results'] . "\n";
 
-//var_dump($partes_do_cabecalho); 
-//exit();
 // Validação da autenticação do Envio (SPF, Dmarc e DKIM)
 $validador = [ 
     'spf' => "/\bspf=([a-zA-Z]+)/i",
@@ -181,7 +179,6 @@ for($contador_linha; $contador_linha < count($versoes_mensagem); $contador_linha
     }
 }
 
-
 # ============================================================================
 /*
 Funcionava
@@ -200,22 +197,21 @@ foreach($versoes_mensagem as $value){
         }
     }
 }
-
 */
+
+# No momento o corpo_eml está sendo retornado apenas se for do tipo text/html, caso contrário será vazio
 
 $resultado_requisicao = [
     "status" => "200",
     "cabecalho_eml" => $cabecalho_final,
-    "corpo_eml" => $mensagem_final ?? "", # retorna vazio caso o corpo do EML não exista
-    "boundary" => $boundary ?? ""
+    "corpo_eml" => $mensagem_final ?? "" # retorna vazio caso o corpo do EML não exista
+    //"boundary" => $boundary ?? ""
     // "auditoria" => $auditoria
 ];
 
 # Exibindo o resultado bem sucedido da requisição
 # e informando o status code 200 (OK) para o cliente
 http_response_code(200); 
-//var_dump($resultado_requisicao);
-//exit();
 echo json_encode($resultado_requisicao) . "\n";
 
 function retorna_erro(){
@@ -231,7 +227,8 @@ function retorna_erro(){
 
 
 /*
-Refe^rencia de pensamento
+
+Referência de pensamento
 
 $pizza = "pizza: 1,pizza: 2,pizza: 3";
 $pizza;
@@ -255,6 +252,8 @@ for($i; $i < count($pizza); $i++){
  }
 }
 */
+
+
 /*
 function cria_dicionario_dados($array_original){
     $array_auxiliar = [];
