@@ -354,7 +354,7 @@ function rfc5322($cabecalho){
     $quantidadeParametros = array_count_values($validaCabecalho);
 
     // Verifica se o domínio do Message-ID bate com o domínio do from
-    if(existeDominio($cabecalho['from:']) && existeDominio($cabecalho['message-id:'])){
+    if(existeDominio($cabecalho['from:'] ?? '') && existeDominio($cabecalho['message-id:'] ?? '')){
         if($dominioFrom[1] === $dominioMessageID[1]){
             $validaCabecalho['dominioIgual'] = true;
         }
@@ -381,7 +381,7 @@ function existeDominio($conta){
     if(preg_match("/^<([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})>$/", $conta, $matches)){
         $dominio = true;
     }
-    return dominio;
+    return $dominio;
 }
 
 /*
