@@ -24,6 +24,8 @@ if($_SERVER['REQUEST_METHOD'] !== 'POST'){
     retorna_erro();
 }
 
+/*
+Funcionava para pequenos EMLs, não para mensagens corporativas 
 # Leitura do conteúdo da página
 $json_recebido = file_get_contents('php://input');
 
@@ -45,6 +47,18 @@ if(!($tamanho_string < 50000 && $tamanho_string > 0)){
 
 # Recebendo o conteúdo da chave eml_content no array eml_bruto
 $eml_bruto = $array_json_recebido['eml_content'];
+*/
+
+// Nova lógica para receber EMLs grandes, como os corporativos, que podem ter mais de 50.000 caracteres
+if(!isset($_FILES['arquivo_eml'])){
+    retorna_erro();
+}
+
+if($_FILES['arquivo_eml']['error'] !== UPLOAD_ERR_OK){
+    retorna_erro();
+}
+
+$eml_bruto = file_get_contents($_FILES['arquivo_eml']['tmp_name']);
 
 #normaliza "pula linha" para ser apenas \n
 $eml_bruto = str_replace("\r\n", "\n", $eml_bruto);
