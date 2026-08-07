@@ -1,8 +1,12 @@
 <?php
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 # Etapa 0: Permitindo acesso cross origin
-# TICKET [FRONT-001]: Configuração de CORS (Cross-Origin Resource Sharing)
 # Permite que o React (porta 5173) converse com o PHP (porta 80)
+# No momento ainda não implementei uma verificação de origem, então qualquer site pode acessar a API
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
@@ -14,8 +18,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-# Etapa 1: Validação do conteúdo e da requisição
-
 # Trocando o tipo de conteudo para JSON
 header('Content-Type: application/json');
 
@@ -24,52 +26,97 @@ if($_SERVER['REQUEST_METHOD'] !== 'POST'){
     retorna_erro();
 }
 
-/*
-Funcionava para pequenos EMLs, não para mensagens corporativas 
-# Leitura do conteúdo da página
-$json_recebido = file_get_contents('php://input');
 
-# Converte o conteúdo recebido para Array associativo
-$array_json_recebido = json_decode($json_recebido, true);
-
-# Verifica se o conteúdo recebido é nulo ou se a chave eml_content existe no array
-if($array_json_recebido === null || !isset($array_json_recebido['eml_content'])){
-    retorna_erro();
-}
-
-# Coletando o tamanho da string
-$tamanho_string = strlen($array_json_recebido['eml_content']);
-
-# Verificando se a string coletada possui um tamnho não ofensivo para a requisição 
-if(!($tamanho_string < 50000 && $tamanho_string > 0)){
-    retorna_erro();
-}
-
-# Recebendo o conteúdo da chave eml_content no array eml_bruto
-$eml_bruto = $array_json_recebido['eml_content'];
-*/
-
-// Nova lógica para receber EMLs grandes, como os corporativos, que podem ter mais de 50.000 caracteres
+// Nova lógica para receber EMLs grandes, como os corporativos, que podem ter mais de 50.000 caracteres e anexos complexos
 if(!isset($_FILES['arquivo_eml'])){
-    retorna_erro();
+    //retorna_erro();
+    http_response_code(400);
+    echo json_encode(["status" => "400", "mensagem" => "A variavel global FILES esta vazia. O FormData nao chegou."]);
+    exit();
 }
 
+# Verifica se ocorreu erro no upload
 if($_FILES['arquivo_eml']['error'] !== UPLOAD_ERR_OK){
-    retorna_erro();
+    //retorna_erro();
+    http_response_code(400);
+    echo json_encode([
+        "status" => "400", 
+        "mensagem" => "Erro na engenharia de transporte do servidor (Codigo: $erro_upload)"
+    ]);
+    exit();
 }
 
-$eml_bruto = file_get_contents($_FILES['arquivo_eml']['tmp_name']);
+# Criação de ponteiro para o arquivo EML dentro de /tmp do php, o r é o modo somente leitura, antes ocorria a leitura direta do arquivo todo
+$eml_bruto = fopen($_FILES['arquivo_eml']['tmp_name'], 'r');
 
-#normaliza "pula linha" para ser apenas \n
-$eml_bruto = str_replace("\r\n", "\n", $eml_bruto);
+# Verifica se ocorreu erro ao abrir ou localizar o arquivo
+if($eml_bruto === false){
+    http_response_code(500);
+    echo json_encode(["status" => "500", "mensagem" => "Falha fatal: O PHP nao conseguiu abrir o arquivo armazenado em /tmp"]);
+    exit();
+}
 
-# Cortando o EML em cabeçalho e corpo
-$partes_do_eml = explode("\n\n", $eml_bruto, 2);
+# $partes_do_eml = [0 => "", 1 => ""];
 
-$cabecalho_normalizado = $partes_do_eml[0];
+#Armazena o ponteiro da linha atual do arquivo
+$linha_atual = "";
+# Array do cabeçalho
+$partes_do_cabecalho = [];
+# Contador linha
+$linha = 0;
+# String com o corpo da mensagem
+$partes_mensagem = "";
+# Interruptor de leitura arquivo ou corpo
+$contador_arquivo = 0;
+
+# Este loop tem a função de ler o arquivo e gerar o array com o conteúdo EML, nada além disso
+while(!feof($eml_bruto)){
+    // Normaliza o pula linha 
+    $linha_atual = str_replace("\r\n", "\n", fgets($eml_bruto));
+    // Verifica se a linha está vazia para mudar o array 
+    if($contador_arquivo === 0){
+        if(trim($linha_atual, "\n") === ""){
+            $contador_arquivo++;
+            $linha = 0;
+        } else {
+         // Adicionar o conteúdo da linha no indice atual contatenando
+         // Normalizando o "pula linha" para ser apenas \n
+            if(preg_match("/^[ \t]+/", $linha_atual, $matches)){
+                //$linha_atual = preg_replace("/\n[ \t]+/", " ", $linha_atual);
+                $partes_do_cabecalho[$linha-1] .= rtrim($linha_atual, "\n");
+            } else {
+                //$linha_atual = preg_replace("/\n[ \t]+/", " ", $linha_atual);
+                $partes_do_cabecalho[$linha] = rtrim($linha_atual, "\n");
+                $linha++;
+            }
+        }
+    } else {
+        //$linha_atual = preg_replace("/\n[ \t]+/", " ", $linha_atual);
+        $partes_mensagem .= $linha_atual;
+    }
+}
+// Finaliza o ponteiro liberando memória
+fclose($eml_bruto);
+
+//var_dump($partes_do_cabecalho);
+//echo json_encode($partes_cabecalho) . "\n";
+//echo json_encode($partes_mensagem) . "\n";
+//exit();
+//var_dump($partes_mensagem);
+
+
+# normaliza "pula linha" para ser apenas \n
+// Feito no fopen
+// $eml_bruto = str_replace("\r\n", "\n", $eml_bruto);
+
+# Cortando o EML em cabeçalho e corp
+// feito no fopen
+//$partes_do_eml = explode("\n\n", $eml_bruto, 2);
+
+//$cabecalho_normalizado = $partes_do_eml[0];
 
 # Solução 1 para remover a dobra de linha (RFC5322) e juntar as linhas quebradas
-$cabecalho_desdobrado = preg_replace("/\n[ \t]+/", " ", $cabecalho_normalizado);
+//$cabecalho_desdobrado = preg_replace("/\n[ \t]+/", " ", $cabecalho_normalizado);
  
 # Cortando o cabeçalho do EML para dentro do array
 # Não pode ser um explode, precisa criar um Array Multidimensional
@@ -93,7 +140,7 @@ for($linhaCabecalho; $linhaCabecalho < count($conteudoLinhasCabecalhoRef); $linh
 */
 
 # Inserindo cada linha do cabeçalho em uma posição do array
-$partes_do_cabecalho = explode("\n", $cabecalho_desdobrado);
+//$partes_do_cabecalho = explode("\n", $cabecalho_desdobrado);
 
 # Recebendo dados para o cabeçalho em formato de array associativo 
 # $cabecalho_final = cria_dicionario_dados($partes_do_cabecalho);
@@ -107,14 +154,7 @@ for($contador_linha; $contador_linha < count($partes_do_cabecalho); $contador_li
 // Explodindo a linha em chave valor 
     $contador_coluna = 0;
     $cabecalho_final[$contador_linha] = explode(":", $partes_do_cabecalho[$contador_linha], 2);
-    // Limpando os dados da linha
-    //for($contador_coluna; $contador_coluna < count($cabecalho_final[$contador_linha]); $contador_coluna++){
-      //  $cabecalho_final[$contador_linha][$contador_coluna] = trim($cabecalho_final[$contador_linha][$contador_coluna]);
-    //}
 }
-
-
-#echo $cabecalho_final['Authentication-Results'] . "\n";
 
 // Validação da autenticação do Envio (SPF, Dmarc e DKIM)
 $validador = [ 
@@ -141,31 +181,29 @@ $versoes_mensagem = ""; // array com as versões da mensagem
 $contador_linha = 0;
 
 // Valida o Content-Type e extrai o Boundary
+/*
 for($contador_linha; $contador_linha < count($cabecalho_final); $contador_linha++){
     $contador_coluna = 0;
     for($contador_coluna; $contador_coluna < count($cabecalho_final[$contador_linha]); $contador_coluna++){
         if (preg_match('/\bmultipart/i', $cabecalho_final[$contador_linha][$contador_coluna], $matches)) {
             if(preg_match('/\bboundary=(?:"([^"]+)"|([^;]+))/i', $cabecalho_final[$contador_linha][$contador_coluna], $matches)){
-                $boundary = $matches[1];
-                $versoes_mensagem = explode("--" . $boundary, $partes_do_eml[1]);
+                #Previne que boundary esteja vazio
+                $boundary = !empty($matches[1]) ? $matches[1] : $matches[2];
+                $versoes_mensagem = explode("--" . $boundary, $partes_mensagem);
+                
             }
         }
     }
 }
-
-# ==============================================================================
-/* Funcionava
-if (preg_match('/\bmultipart/i', $cabecalho_final['Content-Type'])) {
-    if(preg_match('/\bboundary=(?:"([^"]+)"|([^;]+))/i', $cabecalho_final['Content-Type'], $matches)){
-        $boundary = $matches[1];
-        # Essa variável contém o mesmo texto em vários tipos diferentes
-        $versoes_mensagem = explode("--" . $boundary, $partes_do_eml[1]);
-    }
-    //else {
-      //  $versoes_mensagem = $partes_do_eml[1];
-   // }
-}
 */
+
+# Analisa a string e divide ela em todos os boundarys que localizar
+$versoes_mensagem = preg_split('/^--[A-Za-z0-9=_.-]+$/m', $partes_mensagem);
+
+#echo "Boundary: " . $boundary . "\n";
+#echo "Versões da mensagem: \n";
+#var_dump($versoes_mensagem);
+#exit();
 
 # O loop abaixo visa extrair o cabeçalho e mensagem do tipo text/html 
 # para validar em qual codificação está o conteúdo (base64 ou quoted-printable)
@@ -174,23 +212,90 @@ if (preg_match('/\bmultipart/i', $cabecalho_final['Content-Type'])) {
 // Inicializando variáveis
 $mensagem_final = "";
 $contador_linha = 0;
+$mensagem_html = "";
+$mensagem_texto = "";
+$limpa_mensagem = "";
 
 for($contador_linha; $contador_linha < count($versoes_mensagem); $contador_linha++){
-    $array_auxiliar = explode("\n\n", $versoes_mensagem[$contador_linha], 2);
-    $mini_cabecalho = trim($array_auxiliar[0]);
-    $mini_corpo = $array_auxiliar[1] ?? "";
 
-    // Extrai APENAS o Content-Type text/html
-    if (str_contains(strtolower($mini_cabecalho), "text/html")) {
-        $array_auxiliar = explode("\n", $mini_cabecalho);
+// Se não houver mini_corpo (a fatia não tinha um \n\n), também pula.
+    if(preg_match('/Content-Type/', $versoes_mensagem[$contador_linha])){
+        
+        $limpa_mensagem = ltrim($versoes_mensagem[$contador_linha]);
 
-        // Faz a decodificação baseado em quoted-printable ou base64
-        if(str_contains(strtolower($array_auxiliar[1]), "quoted-printable")){
-            $mensagem_final = trim(quoted_printable_decode($mini_corpo));
-        } elseif (str_contains(strtolower($array_auxiliar[1]), "base64")){
-            $mensagem_final = base64_decode($mini_corpo);
+        if ($limpa_mensagem === "") continue; // Caso não tenha mensagem, pula
+        
+        $array_auxiliar = explode("\n\n", $limpa_mensagem, 2);
+        $mini_cabecalho = $array_auxiliar[0];
+        $mini_corpo = $array_auxiliar[1] ?? "";
+
+        if ($mini_corpo === "") continue; // caso não tenha corpo, pula
+
+        // Extrai APENAS o Content-Type text/html
+        if (str_contains(strtolower($mini_cabecalho), "text/plain")) {
+            # Faz a decodificação em quoted-printable
+            if(str_contains(strtolower($mini_cabecalho), "quoted-printable")){
+                $mensagem_texto = quoted_printable_decode($mini_corpo);
+            # Faz a decodificação em base64
+            } elseif (str_contains(strtolower($mini_cabecalho), "base64")){
+                $mensagem_texto = base64_decode($mini_corpo);
+            }
+            // Faz a decodificação basead em7bit, 8bit ou binary
+            elseif (str_contains(strtolower($mini_cabecalho), "7bit") || str_contains(strtolower($mini_cabecalho), "binary")){
+                $mensagem_texto = $mini_corpo;
+            } elseif(str_contains(strtolower($mini_cabecalho), "8bit")){
+                if(preg_match('/charset="?([A-Za-z0-9-]+)"?/i', $mini_cabecalho, $matches)){
+                    if($matches[1] === "UTF-8"){
+                        $mensagem_texto = strtoupper($mini_corpo);
+                    } else {
+                        $mensagem_texto = mb_convert_encoding($mini_corpo, "UTF-8", $matches[1]);
+                    }
+                }
+            }
+        # Extrai a mensagem HTML 
+        } elseif (str_contains(strtolower($mini_cabecalho), "text/html")) {
+            # Faz a decodificação em quoted-printable
+            if(str_contains(strtolower($mini_cabecalho), "quoted-printable")){
+                $mensagem_html = quoted_printable_decode($mini_corpo);
+            # Faz a decodificação em base64
+            } elseif (str_contains(strtolower($mini_cabecalho), "base64")){
+                $mensagem_html = base64_decode($mini_corpo);
+            }
+            // Faz a decodificação basead em7bit, 8bit ou binary
+            elseif (str_contains(strtolower($mini_cabecalho), "7bit") || str_contains(strtolower($mini_cabecalho), "binary")){
+                $mensagem_html = $mini_corpo;
+            } elseif (str_contains(strtolower($mini_cabecalho), "8bit")){
+                if(preg_match('/charset="?([A-Za-z0-9-]+)"?/i', $mini_cabecalho, $matches)){
+                    if($matches[1] === "UTF-8"){
+                        $mensagem_html = trim($mini_corpo);
+                    } else {
+                        $mensagem_html = mb_convert_encoding($mini_corpo, "UTF-8", $matches[1]);
+                    }
+                }
+            }
         }
     }
+    if($mensagem_html !== ""){
+        break;
+    }
+}
+
+//echo "Array completo \n";
+//var_dump($array_auxiliar);
+#echo "cabecalho \n";
+#var_dump($mini_cabecalho);
+#echo "corpo \n";
+#var_dump($mini_corpo);
+#echo "Versão HTML"
+#var_dump($mensagem_html);
+#echo "Vesão Texto Simples"
+#var_dump($mensagem_texto);
+#exit();
+
+if($mensagem_html === ""){
+    $mensagem_final = $mensagem_texto;
+} else {
+    $mensagem_final = $mensagem_html;
 }
 
 # ============================================================================
@@ -225,8 +330,24 @@ $resultado_requisicao = [
 
 # Exibindo o resultado bem sucedido da requisição
 # e informando o status code 200 (OK) para o cliente
-http_response_code(200); 
-echo json_encode($resultado_requisicao) . "\n";
+//http_response_code(200); 
+//echo json_encode($resultado_requisicao) . "\n";
+
+
+$json_final = json_encode($resultado_requisicao);
+
+# Se o JSON falhar, a variável será idêntica a false
+if ($json_final === false) {
+    http_response_code(500);
+    $erro_json = json_last_error_msg(); # Pega o erro interno do motor JSON do PHP
+    echo json_encode([
+        "status" => "500", 
+        "mensagem" => "Falha fatal de UTF-8: O PHP nao conseguiu converter o array para JSON. Motivo: " . $erro_json
+    ]);
+} else {
+    http_response_code(200); 
+    echo $json_final;
+}
 
 function retorna_erro(){
     http_response_code(400);
@@ -236,11 +357,82 @@ function retorna_erro(){
      //   echo json_encode(["status" => "400", "mensagem" => $mensagem_erro]) . "\n";
    // }
     exit();
-
 }
 
+function decodificaMensagem($array_mensagem, $array_cabecalho){
+    $mensagem_saida = "";
+    $cabecalho_lower = strtolower($array_cabecalho);
 
+    if (str_contains($cabecalho_lower, "quoted-printable")) {
+        $mensagem_saida = trim(quoted_printable_decode($array_corpo));
+    } elseif (str_contains($cabecalho_lower, "base64")) {
+        $mensagem_saida = base64_decode($array_corpo);
+    } elseif (str_contains($cabecalho_lower, "7bit") || str_contains($cabecalho_lower, "binary")) {
+        $mensagem_saida = trim($array_corpo);
+    } elseif (str_contains($cabecalho_lower, "8bit")) {
+        $mensagem_saida = trim($array_corpo);
+        if (preg_match('/charset="?([A-Za-z0-9-]+)"?/i', $array_cabecalho, $matches)) {
+            $charset = strtoupper($matches[1]);
+            if ($charset !== "UTF-8") {
+                $mensagem_saida = mb_convert_encoding($mensagem_saida, "UTF-8", $charset);
+            }
+        }
+    } else {
+        $mensagem_saida = trim($array_corpo);
+    }
+    
+    return $mensagem_saida;
+}
 /*
+
+if (str_contains(strtolower($mini_cabecalho), "text/plain")) {
+            # Faz a decodificação em quoted-printable
+            if(str_contains(strtolower($mini_cabecalho), "quoted-printable")){
+                $mensagem_texto = quoted_printable_decode($mini_corpo);
+            # Faz a decodificação em base64
+            } elseif (str_contains(strtolower($mini_cabecalho), "base64")){
+                $mensagem_texto = base64_decode($mini_corpo);
+            }
+            // Faz a decodificação basead em7bit, 8bit ou binary
+            elseif (str_contains(strtolower($mini_cabecalho), "7bit") || str_contains(strtolower($mini_cabecalho), "binary")){
+                $mensagem_texto = $mini_corpo;
+            } elseif(str_contains(strtolower($mini_cabecalho), "8bit")){
+                if(preg_match('/charset="?([A-Za-z0-9-]+)"?/i', $mini_cabecalho, $matches)){
+                    if($matches[1] === "UTF-8"){
+                        $mensagem_texto = strtoupper($mini_corpo);
+                    } else {
+                        $mensagem_texto = mb_convert_encoding($mini_corpo, "UTF-8", $matches[1]);
+                    }
+                }
+            }
+        # Extrai a mensagem HTML 
+        } elseif (str_contains(strtolower($mini_cabecalho), "text/html")) {
+            # Faz a decodificação em quoted-printable
+            if(str_contains(strtolower($mini_cabecalho), "quoted-printable")){
+                $mensagem_html = quoted_printable_decode($mini_corpo);
+            # Faz a decodificação em base64
+            } elseif (str_contains(strtolower($mini_cabecalho), "base64")){
+                $mensagem_html = base64_decode($mini_corpo);
+            }
+            // Faz a decodificação basead em7bit, 8bit ou binary
+            elseif (str_contains(strtolower($mini_cabecalho), "7bit") || str_contains(strtolower($mini_cabecalho), "binary")){
+                $mensagem_texto = $mini_corpo;
+            } elseif(str_contains(strtolower($mini_cabecalho), "8bit")){
+                if(preg_match('/charset="?([A-Za-z0-9-]+)"?/i', $mini_cabecalho, $matches)){
+                    if($matches[1] === "UTF-8"){
+                        $mensagem_texto = strtoupper($mini_corpo);
+                    } else {
+                        $mensagem_texto = mb_convert_encoding($mini_corpo, "UTF-8", $matches[1]);
+                    }
+                }
+            }
+        }
+    }
+    if($mensagem_html !== ""){
+        break;
+    }
+=========================================
+
 
 Referência de pensamento
 

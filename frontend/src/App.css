@@ -34,7 +34,8 @@ section,
 header,
 nav,
 form,
-iframe {
+iframe, 
+  footer {
   margin: 0px;
   padding: 0px;
   box-sizing: border-box;
@@ -69,7 +70,7 @@ footer {
   margin: 0px;
   display: flex;
   justify-content: center;
-  height: 3vh;
+  height: 1%;
   width: 100%;
 }
 
