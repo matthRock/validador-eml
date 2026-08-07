@@ -53,38 +53,49 @@ function App() {
 
   async function validaUploadArquivo(event) {
 
-    // Carregando o primeiro arquivo via upload
-    //const arquivo = event.target.files[0];
+    // Leitura da Rereferencia do arquivo físico carregado
+    const arquivoFisico = event.target.files[0];
+
+    // Se não houver arquivo, retorna
+    if (!arquivoFisico) return;
+
+    // Criação do objeto FormData par ler o EML
+    const payloadBinario = new FormData();
+    // Lendo o conteúdo do arquivo como texto fornecendo o nome da referencia do arquivo físico carregado
+    payloadBinario.append('arquivo_eml', arquivoFisico);
+
+    try {
+      const resposta = await fetch(url, {
+        method: 'POST',
+        headers: {
+          // Vazio porque o navegador vai setar o Content-Type correto para multipart/form-data
+          // authentication: 'Bearer ' + token;
+        },
+        // O body é o FormData que contém o arquivo EML
+        body: payloadBinario
+      });
+
+      setResultadoAnalise(await resposta.json());
+
+    } catch (erro) {
+      setMensagemErro('Erro na comunicação com o servidor: ' + erro.message);
+    }
 
     // Criando um objeto leitor de arquivos
     const reader = new FileReader();
-    // var conteudoFinal = new object();
-    //
 
     reader.onload = async (eventoDeCarregamento) => {
+
       const conteudoDoArquivo = eventoDeCarregamento.target.result;
 
-      //const conteudoFinal.eml_content = conteudoDoArquivo;
-      try {
-        const resposta = await fetch(url, {
-          method: 'POST',
-          headers:
-          {
-            'Content-Type': 'application/json',
-            // authentication: 'Bearer ' + token;
-          },
-          body: JSON.stringify({ eml_content: conteudoDoArquivo }),
-        });
-        setResultadoAnalise(await resposta.json());
-        //carrega o arquivo no editor do Monaco
-        if (editorRef.current) {
-          editorRef.current.setValue(conteudoDoArquivo);
-        }
-      } catch (erro) {
-        setMensagemErro('Erro ao processar a resposta do servidor: ' + erro.message);
+      //carrega o arquivo no editor do Monaco
+      if (editorRef.current) {
+        editorRef.current.setValue(conteudoDoArquivo);
       }
     };
-    reader.readAsText(event.target.files[0]);
+
+    // Inicia a leitura como texto
+    reader.readAsText(arquivoFisico);
   }
 
   // Função que sanitiza o HTML que será exibido no iframe, para evitar ataques Cross Site Scripting (XSS)
